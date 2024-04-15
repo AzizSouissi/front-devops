@@ -1,29 +1,29 @@
-# Stage 1: Build the Angular app
-FROM node:20.11.0-slim AS build
-ARG build_env=development
-# Set the working directory
+# Use node image as base
+FROM node:18 as build
+
+# Set the working directory in the container
 WORKDIR /app
-# Copy the source code to the working directory
-COPY . .
+
+# Copy package.json and package-lock.json to the working directory
+COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-RUN npm install -g @angular/cli
-# Build the Angular application
-RUN ng build --configuration=$build_env
+# Copy the rest of the application code
+COPY . .
 
+# Build the Angular app for production
+RUN npm run build --prod
 
-# Stage 2: Serve app with nginx server
+# Stage 2: Use nginx to serve the compiled Angular app
+FROM nginx:alpine
 
-# Use official nginx image as the base image
-FROM nginx:latest
+# Copy the built Angular app from the 'build' stage to the nginx html directory
+COPY --from=build /app/dist/crudtuto-front /usr/share/nginx/html
 
-COPY nginx.conf /etc/nginx/nginx.conf
-# Copy the built application from Stage 1 to replace the default nginx contents
-COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
-
-
-# Expose port 80
-
+# Expose port 80 to the outside world
 EXPOSE 80
+
+# Start nginx server
+CMD ["nginx", "-g", "daemon off;"]
